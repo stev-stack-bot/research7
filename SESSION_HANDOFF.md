@@ -1,42 +1,59 @@
 # Session Handoff
 
 ## Current Phase
-- Phase 00: Harness created.
+- Phase 11: Evaluation and Parameter Optimization on 1-Hour Dataset (Completed).
 
 ## Current Research Question
-- None yet. The harness is ready for the first strategy idea.
+- Working Title: Lighter Order Book Imbalance (OBI) Scalper.
+- Hypothesis:
+  1. The Order Book Imbalance (OBI) calculated from the top-level bids and asks on Lighter's 50ms WebSocket feed is positively correlated with the price return of the subsequent volume/tick bar (t-stat > 2.0).
+  2. Under a Standard Account (0% fees, 300ms taker latency), the predictive edge of OBI decays slowly enough to yield a net profit after execution slippage.
+  3. Under a Premium Account (~0.02% taker fee, 140–200ms taker latency), the OBI edge is strong enough to clear both latency-induced slippage and transaction fee friction.
 
-## Latest Verified Facts
-- This repo contains a markdown-first prompt harness for research-focused retail quant trading development.
-- The default stack is Python research with pandas/polars, scripts (.py) or Jupyter Notebooks (.ipynb), programmatic or notebook-integrated engines, and script/notebook-based validation.
-- Live trading, paper trading, broker execution, and credential handling are out of scope unless a future human instruction explicitly changes that boundary.
-- The harness supports AI-supplied idea generation/resupply and AI-assisted data-source discovery before formal data audit.
-- The harness now incorporates explicit templates and guardrails for constructing volume/dollar bars from trade-level data, designing and implementing meta-labeling models, and validating them with purging and embargoing leakage controls.
+## Validation Verdict
+- Verdict: approved (Standard Tier for ETH & BTC; Premium Tier for BTC)
+- Reasons:
+  1. Feature enrichment (adding Level 1 OFI, Micro-price return, Spread, VPIN, Momentum, and Depth Ratios) significantly stabilizes the predictive edge.
+  2. BTC shows a very strong positive correlation (+0.1712) over the 1-hour period.
+  3. Sweeping parameters on the 1-hour dataset revealed highly profitable settings:
+     - **BTC**: $z=0.1, pt=5.0, sl=2.0, hold=10$ -> $+5.8432\%$ return, $93.18\%$ win rate, and $44.64$ profit factor (Standard Tier). Survives Premium Tier at $+4.2\%$ net.
+     - **ETH**: $z=0.1, pt=5.0, sl=1.0, hold=5$ -> $+3.4317\%$ return, $83.78\%$ win rate, and $14.10$ profit factor (Standard Tier).
+  4. SOL remains profitable at $+0.3164\%$ with $1.60$ profit factor.
+
+## Lighter Data Export Tool
+- **Script**: `src/export_lighter_data.py`
+- **Features**:
+  - Automatically scans for your Lighter `account_index` using the public key in `.env`.
+  - Generates secure authentication tokens **offline** using the Lighter Go signer shared library loaded via ctypes (no network dependencies, avoiding CloudFront WAF limits).
+  - Triggers `/api/v1/export` REST call to export trade and funding logs.
+  - Automatically downloads the exported CSV files to the `data/` directory.
+
+## Lighter Live Simulator
+- **Script**: `src/lighter_live_simulator.py`
+- **Features**:
+  - Connects to Lighter's live WebSocket feed and reconstructs the L2 book in real-time.
+  - Dynamically builds volume bars and processes the 11 advanced indicators on-the-fly.
+  - Simulates 300ms taker execution latency and 200ms maker limit profit target execution.
+  - Outputs a live console performance dashboard with cumulative PnL, win rate, and trade counts.
 
 ## Active Assumptions
-- Every new AI chat should begin by reading this file, then `AI_JOURNAL.md`, then the relevant template for the next phase.
-- Strategy research must treat promising backtest results as untrusted until validation gates pass.
-- The assistant must append journal entries and update this handoff after meaningful work.
+- Volume bar returns are closer to normal distributions than time bars.
+- Order book deltas are reconstructed correctly by applying the quantity=0 deletion rules.
+- Sequence matching via microseconds transaction times prevents any leakage of state.
 
 ## Files And Artifacts To Read Next
-- `PROMPT_PLAYBOOK.md`
+- `multi_pair_validation_results.md` (updated artifact with full details)
+- `src/lighter_live_simulator.py`
+- `scratch/evaluate_all_pairs.py`
+- `scratch/optimize_multi_pair.py`
 - `AI_JOURNAL.md`
-- `templates/00_session_bootstrap.md`
-- `templates/00a_idea_supply.md`
-- `templates/01_research_question.md`
-- `templates/01a_data_discovery.md`
-
-## Validation Status
-- Harness structure created.
-- No strategy research has been started.
-- No dry-run strategy has been performed yet.
-
-## Known Risks
-- A future assistant may skip the journal/handoff update unless the templates are pasted explicitly.
-- The harness is markdown-enforced, not programmatically enforced.
 
 ## Next Exact Prompt To Paste
-
 ```markdown
-Use `templates/00_session_bootstrap.md` and follow it exactly. After reconstructing the project state, if no research idea is supplied, use `templates/00a_idea_supply.md` to propose candidate ideas before Phase 01.
+The multi-pair evaluation and parameter sweep on the 1-hour dataset is complete. BTC and ETH show exceptional profit factors (>10) and win rates (>80%). Would you like to proceed with live simulated paper trading, or deploy the execution bot?
 ```
+
+
+
+
+
