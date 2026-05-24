@@ -36,8 +36,16 @@ class LiveLighterSimulator:
         self.bar_start_idx = 0
         self.bar_start_time = None
         
-        # Dynamic volume bar threshold (initial guess, updated dynamically)
-        self.v_thresh = 1.0 if symbol == "BTC" else 100.0
+        # Volume bar threshold (matched to optimized backtest sizes)
+        if symbol == "BTC":
+            self.v_thresh = 3.43
+        elif symbol == "ETH":
+            self.v_thresh = 78.4
+        elif symbol == "SOL":
+            self.v_thresh = 513.8
+        else:
+            self.v_thresh = 100.0
+
         
         # Strategy execution state
         self.active_trades = [] # List of active trade dicts
@@ -324,18 +332,15 @@ class LiveLighterSimulator:
                     msg_str = await ws.recv()
                     msg = json.loads(msg_str)
                     
-                    m_type = msg.get("type")
-                    if not m_type:
-                        continue
-                        
+                    channel = msg.get("channel", "")
                     ts_us = int(msg.get("last_updated_at") or time.time() * 1000000)
                     
-                    if m_type == "update/order_book" or m_type.startswith("subscribed/"):
+                    if "order_book" in channel:
                         ob = msg.get("order_book")
                         if ob:
                             self.update_order_book(ob, ts_us)
                             
-                    elif m_type == "update/trade":
+                    elif "trade" in channel:
                         trades_list = msg.get("trades") or []
                         liq_list = msg.get("liquidation_trades") or []
                         for t in (trades_list + liq_list):
@@ -350,13 +355,15 @@ if __name__ == "__main__":
     market = "1" if len(sys.argv) < 2 else sys.argv[1]
     symbol = "BTC" if len(sys.argv) < 3 else sys.argv[2]
     
-    # Use best parameters found in grid search
+    # Use best parameters found in grid search on 1-hour dataset
     if symbol == "BTC":
         z_t = 0.1; pt = 5.0; sl = 2.0; hold = 10
     elif symbol == "SOL":
-        z_t = 1.0; pt = 3.0; sl = 2.0; hold = 10
+        z_t = 0.5; pt = 2.0; sl = 2.0; hold = 5
+    elif symbol == "ETH":
+        z_t = 0.1; pt = 5.0; sl = 1.0; hold = 5
     else:
-        z_t = 0.5; pt = 2.0; sl = 1.0; hold = 5
+        z_t = 0.1; pt = 5.0; sl = 1.0; hold = 5
         
     sim = LiveLighterSimulator(market, symbol, z_threshold=z_t, pt_mult=pt, sl_mult=sl, hold_bars=hold)
     

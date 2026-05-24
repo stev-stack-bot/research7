@@ -1514,6 +1514,85 @@ Do not delete or rewrite prior entries unless repairing obvious formatting corru
 ### Next Action
 - Guide the user on deployment options, live simulated paper trading, or further historical expansion.
 
+## 2026-05-24 11:09 UTC - Phase 12: Live Simulator Deployment with Optimized Parameters
+
+### User Request
+- "run the live simulator for a longer period with these new best parameters"
+
+### Context Read
+- `src/lighter_live_simulator.py`
+
+### Actions Taken
+- Updated the default strategy configurations in `src/lighter_live_simulator.py` to match the optimal settings found in the 1-hour parameter sweep:
+  - BTC: $z=0.1, pt=5.0, sl=2.0, hold=10$.
+  - ETH: $z=0.1, pt=5.0, sl=1.0, hold=5$.
+  - SOL: $z=0.5, pt=2.0, sl=2.0, hold=5$.
+- Discovered and fixed a critical bug in the WebSocket message stream parsing:
+  - The live mainnet feed does not supply a `"type"` attribute on updates, which previously caused the simulator to silently drop all book and trade messages.
+  - Refactored the stream parser to check the `"channel"` attribute (`"order_book"` or `"trade"`), resolving the message ingestion drop.
+- Started background simulator runs for **BTC** and **ETH** with unbuffered logging (`python3 -u`) redirected to:
+  - `data/live_simulator_btc.log`
+  - `data/live_simulator_eth.log`
+- Verified that volume bars are successfully forming in real-time, features are computing correctly, and multiple strategy trades are triggering as expected.
+
+### Files Changed
+- `src/lighter_live_simulator.py`
+- `SESSION_HANDOFF.md`
+- `AI_JOURNAL.md` (this file)
+
+### Commands Or Checks Run
+- Started background simulators: `(python3 -u src/lighter_live_simulator.py 1 BTC > data/live_simulator_btc.log 2>&1 & python3 -u src/lighter_live_simulator.py 0 ETH > data/live_simulator_eth.log 2>&1)`
+- Verified processes are active via `ps aux`.
+- Inspected real-time trigger outputs via log tailing.
+
+### Decisions Made
+- Chose to run BTC and ETH simulators simultaneously as they are the highest-performing pairs from the 1-hour backtest validation.
+- Configured log redirection in unbuffered mode to support real-time user inspection.
+
+### Evidence
+- BTC Simulator triggers: `[Strategy Trade Triggered] SHORT Entry | Fill Price: 77202.20 | TP: 76148.48 | SL: 77623.69`
+- ETH Simulator successfully forming volume bars.
+
+### Next Action
+- Let the live simulators run to collect performance metrics over an extended period.
+
+## 2026-05-24 12:08 UTC - Phase 13: Volume Bar Matching and Overtrading Fix
+
+### User Request
+- "tail not looking good?" (query regarding negative PnL in live simulator runs)
+
+### Context Read
+- `src/lighter_live_simulator.py`
+- `src/lighter_backtester.py`
+
+### Actions Taken
+- Analyzed the mismatch between backtest results and live simulator behavior:
+  - **Findings**: The live simulator initially used static volume thresholds (`1.0` for BTC and `100.0` for ETH). However, the backtester calculated volume thresholds dynamically to get 40 bars/hour (`3.43` for BTC and `78.4` for ETH).
+  - **Impact**: The smaller volume threshold in the live simulator for BTC caused it to generate `131` trades (versus only `44` in the optimized sweep), resulting in high noise and excessive slippage drag (approx. `196 bps` or `1.96%` lost to slippage). For ETH, the tight volatility window at startup set stop losses too narrow (~5 bps), causing consecutive stop outs.
+- Updated `src/lighter_live_simulator.py` to match the exact optimized volume thresholds used in the 1-hour backtest:
+  - BTC: `3.43`
+  - ETH: `78.4`
+  - SOL: `513.8`
+- Restarted the simulators in the background and verified correct bar construction sizes.
+
+### Files Changed
+- `src/lighter_live_simulator.py`
+- `SESSION_HANDOFF.md`
+- `AI_JOURNAL.md` (this file)
+
+### Commands Or Checks Run
+- Killed old simulators using `pkill -f`.
+- Started new simulators: `(python3 -u src/lighter_live_simulator.py 1 BTC > data/live_simulator_btc.log 2>&1 & python3 -u src/lighter_live_simulator.py 0 ETH > data/live_simulator_eth.log 2>&1)`
+- Confirmed correct initial bar sizes: BTC `3.458` (close to `3.43`) and ETH `82.939` (close to `78.4`).
+
+### Decisions Made
+- Matched live volume bar thresholds to the optimized backtest settings to ensure rolling indicators and volatility windows are aligned, preventing overtrading and narrow stop-loss triggers.
+
+### Next Action
+- Allow the synchronized live simulators to run and monitor their performance.
+
+
+
 
 
 

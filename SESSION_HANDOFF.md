@@ -1,7 +1,7 @@
 # Session Handoff
 
 ## Current Phase
-- Phase 11: Evaluation and Parameter Optimization on 1-Hour Dataset (Completed).
+- Phase 13: Live Simulator Running with Matched Thresholds (Active).
 
 ## Current Research Question
 - Working Title: Lighter Order Book Imbalance (OBI) Scalper.
@@ -44,13 +44,13 @@
 ## Files And Artifacts To Read Next
 - `multi_pair_validation_results.md` (updated artifact with full details)
 - `src/lighter_live_simulator.py`
-- `scratch/evaluate_all_pairs.py`
-- `scratch/optimize_multi_pair.py`
+- `data/live_simulator_btc.log`
+- `data/live_simulator_eth.log`
 - `AI_JOURNAL.md`
 
 ## Next Exact Prompt To Paste
 ```markdown
-The multi-pair evaluation and parameter sweep on the 1-hour dataset is complete. BTC and ETH show exceptional profit factors (>10) and win rates (>80%). Would you like to proceed with live simulated paper trading, or deploy the execution bot?
+The BTC and ETH live simulators are running in the background with the corrected volume thresholds matched to the backtest. How would you like to proceed?
 ```
 
 
