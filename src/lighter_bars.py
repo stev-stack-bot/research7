@@ -93,6 +93,11 @@ def map_lighter_book_updates_to_bars(book_file, bars_df):
             if not ob_data:
                 continue
             
+            # If snapshot is received, clear local state to prevent stale levels
+            if len(ob_data.get("bids", [])) > 100 or len(ob_data.get("asks", [])) > 100:
+                current_bids.clear()
+                current_asks.clear()
+
             # update bids
             for b in ob_data.get("bids", []):
                 price = float(b["price"])

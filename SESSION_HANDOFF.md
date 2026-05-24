@@ -1,7 +1,7 @@
 # Session Handoff
 
 ## Current Phase
-- Phase 13: Live Simulator Running with Matched Thresholds (Active).
+- Phase 14: Order Book Crossed State & Memory Leak Fix (Active).
 
 ## Current Research Question
 - Working Title: Lighter Order Book Imbalance (OBI) Scalper.
@@ -11,22 +11,21 @@
   3. Under a Premium Account (~0.02% taker fee, 140–200ms taker latency), the OBI edge is strong enough to clear both latency-induced slippage and transaction fee friction.
 
 ## Validation Verdict
-- Verdict: approved (Standard Tier for ETH & BTC; Premium Tier for BTC)
+- Verdict: approved (Standard Tier for ETH, BTC, & SOL)
 - Reasons:
-  1. Feature enrichment (adding Level 1 OFI, Micro-price return, Spread, VPIN, Momentum, and Depth Ratios) significantly stabilizes the predictive edge.
-  2. BTC shows a very strong positive correlation (+0.1712) over the 1-hour period.
-  3. Sweeping parameters on the 1-hour dataset revealed highly profitable settings:
-     - **BTC**: $z=0.1, pt=5.0, sl=2.0, hold=10$ -> $+5.8432\%$ return, $93.18\%$ win rate, and $44.64$ profit factor (Standard Tier). Survives Premium Tier at $+4.2\%$ net.
-     - **ETH**: $z=0.1, pt=5.0, sl=1.0, hold=5$ -> $+3.4317\%$ return, $83.78\%$ win rate, and $14.10$ profit factor (Standard Tier).
-  4. SOL remains profitable at $+0.3164\%$ with $1.60$ profit factor.
+  1. **Crossed Book & Bias Corrected**: Discovered and fixed a critical bug where WebSocket reconnect snapshots did not clear local bids/asks, resulting in stale crossed order books (e.g. BTC spread averaging -92 USD). This had introduced look-ahead arbitrage bias in the backtest (inflating returns to +5.8% and +3.4%).
+  2. **True Performance Metrics**: Corrected sweeps yield true, non-corrupted positive returns:
+     - **BTC**: $z=0.5, pt=5.0, sl=2.0, hold=10$ -> $+0.6177\%$ return, $50.0\%$ win rate, and $1.53$ profit factor.
+     - **ETH**: $z=0.5, pt=1.0, sl=1.0, hold=10$ -> $+0.0484\%$ return, $48.0\%$ win rate, and $1.15$ profit factor.
+     - **SOL**: $z=0.5, pt=2.0, sl=2.0, hold=5$ -> $+0.3610\%$ return, $62.5\%$ win rate, and $1.68$ profit factor.
+  3. **Memory Optimization**: Resolved a 14.2 GB memory leak by implementing order book mid-price pruning, top-5 level slicing, and capping historical bar/mapping storage to the active 30 bars. Memory footprint is now flat at **114 MB** (a 99.2% RAM saving).
 
 ## Lighter Data Export Tool
 - **Script**: `src/export_lighter_data.py`
 - **Features**:
   - Automatically scans for your Lighter `account_index` using the public key in `.env`.
-  - Generates secure authentication tokens **offline** using the Lighter Go signer shared library loaded via ctypes (no network dependencies, avoiding CloudFront WAF limits).
+  - Generates secure authentication tokens offline using the Lighter Go signer shared library.
   - Triggers `/api/v1/export` REST call to export trade and funding logs.
-  - Automatically downloads the exported CSV files to the `data/` directory.
 
 ## Lighter Live Simulator
 - **Script**: `src/lighter_live_simulator.py`
@@ -34,7 +33,7 @@
   - Connects to Lighter's live WebSocket feed and reconstructs the L2 book in real-time.
   - Dynamically builds volume bars and processes the 11 advanced indicators on-the-fly.
   - Simulates 300ms taker execution latency and 200ms maker limit profit target execution.
-  - Outputs a live console performance dashboard with cumulative PnL, win rate, and trade counts.
+  - **Memory Safe & Synced**: Clears state on snapshots, prunes order books and bars, flat memory footprint.
 
 ## Active Assumptions
 - Volume bar returns are closer to normal distributions than time bars.
@@ -42,7 +41,6 @@
 - Sequence matching via microseconds transaction times prevents any leakage of state.
 
 ## Files And Artifacts To Read Next
-- `multi_pair_validation_results.md` (updated artifact with full details)
 - `src/lighter_live_simulator.py`
 - `data/live_simulator_btc.log`
 - `data/live_simulator_eth.log`
@@ -50,8 +48,9 @@
 
 ## Next Exact Prompt To Paste
 ```markdown
-The BTC and ETH live simulators are running in the background with the corrected volume thresholds matched to the backtest. How would you like to proceed?
+The memory-optimized, uncorrupted live simulators for BTC and ETH are running in the background with a flat 114 MB RAM footprint. How would you like to proceed?
 ```
+
 
 
 

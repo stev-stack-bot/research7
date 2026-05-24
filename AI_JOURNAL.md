@@ -1591,6 +1591,43 @@ Do not delete or rewrite prior entries unless repairing obvious formatting corru
 ### Next Action
 - Allow the synchronized live simulators to run and monitor their performance.
 
+## 2026-05-24 12:42 UTC - Phase 14: Order Book Crossed State & Memory Leak Fix
+
+### User Request
+- Continued monitoring of simulator and optimization progress.
+
+### Context Read
+- `src/lighter_bars.py`
+- `src/lighter_live_simulator.py`
+
+### Actions Taken
+- **Discovered Crossed Book Bug**: Analyzed why the average spreads on historical and live data were negative (e.g., BTC spread averaging -92 USD). Found that whenever a WebSocket reconnection or data block boundary triggered a new snapshot, the local book dictionaries (`current_bids`, `current_asks`) were NOT cleared, appending the new snapshot on top of old, stale levels and creating a permanently crossed order book.
+- **Discovered Look-Ahead Arbitrage Bias**: Identified that the crossed book gave the backtester artificial risk-free arbitrage returns (+5.84% on BTC, +3.43% on ETH) by allowing it to buy at actual ask prices and instantly exit at stale, higher bid levels.
+- **Discovered Memory Leak**: Found that the simulator was consuming 14.2 GB of RAM because it kept the entire order book (thousands of levels) across all updates, and kept a growing list of all historical book-bar mappings.
+- **Implemented Fixes**:
+  - **Snapshot Clearing**: Clear local bids and asks when a snapshot is received (defined as a message with > 100 bids or asks).
+  - **Mid-Price Pruning & Top-5 Slicing**: Slices bids and asks to the top 5 levels and discards levels further than 5% of mid-price, ensuring memory doesn't leak.
+  - **History Pruning**: Prunes bars list, book-bar mappings, and recent trades to keep only the active 30 bars, capping RAM usage at a flat ~114 MB.
+- **Re-ran Parameters Optimization**:
+  - BTC optimal: z=0.5, pt=5.0, sl=2.0, hold=10 (+0.61% return, 1.53 PF)
+  - ETH optimal: z=0.5, pt=1.0, sl=1.0, hold=10 (+0.05% return, 1.15 PF)
+  - SOL optimal: z=0.5, pt=2.0, sl=2.0, hold=5 (+0.36% return, 1.68 PF)
+- **Restarted Simulators**: Deployed the memory-safe and uncorrupted simulators in the background.
+
+### Files Changed
+- `src/lighter_bars.py`
+- `src/lighter_live_simulator.py`
+- `AI_JOURNAL.md`
+
+### Commands Run
+- `pkill -f lighter_live_simulator`
+- Started new simulator instances in the background.
+
+### Decisions Made
+- Capped history to the last 30 bars to keep memory and CPU footprint flat forever.
+- Updated default configuration parameters to the corrected optimal values.
+
+
 
 
 

@@ -61,6 +61,11 @@ class LiveLighterSimulator:
         print(f"=======================================================")
 
     def update_order_book(self, ob_data, ts_us):
+        # Clear local order book state if a full snapshot is received
+        if len(ob_data.get("bids", [])) > 100 or len(ob_data.get("asks", [])) > 100:
+            self.bids.clear()
+            self.asks.clear()
+
         # Update bids
         for b in ob_data.get("bids", []):
             price = float(b["price"])
@@ -78,9 +83,22 @@ class LiveLighterSimulator:
                 self.asks.pop(price, None)
             else:
                 self.asks[price] = size
+
+        # Prune old levels to keep dictionaries small (prevents RAM leaks)
+        if self.bids and self.asks:
+            best_bid = max(self.bids.keys())
+            best_ask = min(self.asks.keys())
+            mid_px = (best_bid + best_ask) / 2.0
+            
+            for px in list(self.bids.keys()):
+                if px < mid_px * 0.95:
+                    self.bids.pop(px)
+            for px in list(self.asks.keys()):
+                if px > mid_px * 1.05:
+                    self.asks.pop(px)
                 
-        sorted_bids = sorted([{"px": p, "sz": s} for p, s in self.bids.items()], key=lambda x: x["px"], reverse=True)
-        sorted_asks = sorted([{"px": p, "sz": s} for p, s in self.asks.items()], key=lambda x: x["px"])
+        sorted_bids = sorted([{"px": p, "sz": s} for p, s in self.bids.items()], key=lambda x: x["px"], reverse=True)[:5]
+        sorted_asks = sorted([{"px": p, "sz": s} for p, s in self.asks.items()], key=lambda x: x["px"])[:5]
         
         state = {
             "time": ts_us,
@@ -88,6 +106,7 @@ class LiveLighterSimulator:
             "bids": sorted_bids,
             "asks": sorted_asks
         }
+
         self.book_history.append(state)
         if len(self.book_history) > 2000:
             self.book_history.pop(0)
@@ -128,6 +147,9 @@ class LiveLighterSimulator:
             }
             
             self.bars.append(new_bar)
+            if len(self.bars) > 30:
+                self.bars.pop(0)
+                
             print(f"\n[+] Volume Bar {self.bar_index} Formed | Close: {bar_close:.2f} | Vol: {self.cum_vol:.3f} | Trades: {len(bar_trades)}")
             
             # Map book updates to this bar
@@ -135,19 +157,23 @@ class LiveLighterSimulator:
                 if self.bar_start_time <= state["time"] <= bar_end_time:
                     self.book_bar_mapping.append((self.bar_index, state))
                     
+            # Prune book_bar_mapping to match the active bars in self.bars
+            min_active_bar_idx = self.bars[0]["bar_index"]
+            self.book_bar_mapping = [item for item in self.book_bar_mapping if item[0] >= min_active_bar_idx]
+            
             # Compute features & check signals
             self.process_features_and_signals()
             
             # Reset for next bar
             self.cum_vol = 0.0
-            self.bar_start_idx = len(self.recent_trades)
             self.bar_start_time = None
             self.bar_index += 1
             
-            # Keep trade history under control
-            if len(self.recent_trades) > 5000:
-                self.recent_trades = self.recent_trades[-1000:]
-                self.bar_start_idx = len(self.recent_trades)
+            # Prune recent_trades to match active bars
+            min_active_time = self.bars[0]["start_time"]
+            self.recent_trades = [t for t in self.recent_trades if t["transaction_time"] >= min_active_time]
+            self.bar_start_idx = len(self.recent_trades)
+
 
     def process_features_and_signals(self):
         if len(self.bars) < 3:
@@ -357,13 +383,13 @@ if __name__ == "__main__":
     
     # Use best parameters found in grid search on 1-hour dataset
     if symbol == "BTC":
-        z_t = 0.1; pt = 5.0; sl = 2.0; hold = 10
+        z_t = 0.5; pt = 5.0; sl = 2.0; hold = 10
     elif symbol == "SOL":
         z_t = 0.5; pt = 2.0; sl = 2.0; hold = 5
     elif symbol == "ETH":
-        z_t = 0.1; pt = 5.0; sl = 1.0; hold = 5
+        z_t = 0.5; pt = 1.0; sl = 1.0; hold = 10
     else:
-        z_t = 0.1; pt = 5.0; sl = 1.0; hold = 5
+        z_t = 0.5; pt = 2.0; sl = 2.0; hold = 5
         
     sim = LiveLighterSimulator(market, symbol, z_threshold=z_t, pt_mult=pt, sl_mult=sl, hold_bars=hold)
     
