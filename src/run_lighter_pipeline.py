@@ -70,6 +70,11 @@ def run_lighter_pipeline():
             ob_data = msg.get("order_book", {})
             if not ob_data:
                 continue
+            # Clear bids/asks when snapshot is detected (>100 levels) to prevent stale price level leakage
+            if len(ob_data.get("bids", [])) > 100 or len(ob_data.get("asks", [])) > 100:
+                current_bids.clear()
+                current_asks.clear()
+                
             for b in ob_data.get("bids", []):
                 price = float(b["price"])
                 size = float(b["size"])

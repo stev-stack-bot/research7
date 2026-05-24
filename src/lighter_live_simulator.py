@@ -176,7 +176,8 @@ class LiveLighterSimulator:
 
 
     def process_features_and_signals(self):
-        if len(self.bars) < 3:
+        # Warm up for at least 12 bars to ensure rolling windows (window=10) are fully populated and stable
+        if len(self.bars) < 12:
             return
             
         bars_df = pd.DataFrame(self.bars)
@@ -197,7 +198,10 @@ class LiveLighterSimulator:
         vpin = latest_row["vpin"]
         spread = latest_row["avg_spread"]
         
-        print(f"    Features -> OBI Z-Score: {cofi_z:.4f} | VPIN: {vpin:.4f} | Spread: {spread:.4f}")
+        # Compute rolling spread mean
+        rolling_spread_mean = df_feats["avg_spread"].rolling(10, min_periods=1).mean().iloc[-1]
+        
+        print(f"    Features -> OBI Z-Score: {cofi_z:.4f} | VPIN: {vpin:.4f} | Spread: {spread:.4f} (Mean: {rolling_spread_mean:.4f})")
         
         # Signal Generation
         direction = 0
@@ -206,6 +210,17 @@ class LiveLighterSimulator:
         elif cofi_z <= -self.z_threshold:
             direction = -1
             
+        if direction != 0:
+            # Apply Filters:
+            # 1. Spread filter: Current spread must be <= rolling mean spread to minimize entry slippage
+            # 2. VPIN filter: Current VPIN must be <= 0.6 to avoid toxic order flow
+            if spread > rolling_spread_mean:
+                print(f"    [Signal Filtered] Spread too wide: {spread:.4f} > mean {rolling_spread_mean:.4f}")
+                direction = 0
+            elif vpin > 0.6:
+                print(f"    [Signal Filtered] VPIN too high (toxic flow): {vpin:.4f} > 0.6")
+                direction = 0
+                
         if direction != 0:
             self.trigger_simulated_trade(direction, latest_row)
 
