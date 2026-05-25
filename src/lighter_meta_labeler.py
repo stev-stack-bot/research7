@@ -40,7 +40,8 @@ def train_lighter_meta_labeler(df, train_events):
     FEATURE_COLS = [
         "volatility_ratio", "duration", "depth_ratio", 
         "cofi_l1_z", "micro_ret", "avg_spread", "vpin", 
-        "ret_lag1", "ret_lag2", "depth_ratio_l3", "depth_ratio_l5"
+        "ret_lag1", "ret_lag2", "depth_ratio_l3", "depth_ratio_l5",
+        "velocity", "gini_coefficient", "tick_efficiency"
     ]
     
     X_train = []

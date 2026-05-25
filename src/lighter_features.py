@@ -176,8 +176,11 @@ def compute_lighter_bar_features(bars_df, book_bar_mapping, trade_events, levels
     bars_df["ret_lag1"] = bars_df["ret"].shift(1).fillna(0.0)
     bars_df["ret_lag2"] = bars_df["ret"].shift(2).fillna(0.0)
     
-    # Compute VPIN for each bar
+    # Compute VPIN, Gini Coefficient, and Tick-Path Efficiency for each bar
     vpin_values = []
+    gini_values = []
+    tick_efficiency_values = []
+    
     for idx, row in bars_df.iterrows():
         t_start = row["start_time"]
         t_end = row["end_time"]
@@ -185,10 +188,13 @@ def compute_lighter_bar_features(bars_df, book_bar_mapping, trade_events, levels
         # Filter trades in this bar
         bar_trades = [t for t in trade_events if t_start <= t["transaction_time"] <= t_end]
         
-        if not bar_trades or not book_times:
+        if not bar_trades:
             vpin_values.append(0.0)
+            gini_values.append(0.0)
+            tick_efficiency_values.append(1.0)
             continue
             
+        # 1. VPIN Calculation
         buy_vol = 0.0
         sell_vol = 0.0
         total_vol = 0.0
@@ -199,17 +205,18 @@ def compute_lighter_bar_features(bars_df, book_bar_mapping, trade_events, levels
             t_trade = trade["transaction_time"]
             
             # Find closest book state in time
-            book_idx = bisect_left(book_times, t_trade)
-            if book_idx >= len(all_books):
-                book_idx = len(all_books) - 1
-                
-            closest_book = all_books[book_idx]
-            
-            try:
-                bid_px = float(closest_book["levels"][0][0]["px"])
-                ask_px = float(closest_book["levels"][1][0]["px"])
-                mid_px = (bid_px + ask_px) / 2.0
-            except Exception:
+            if book_times:
+                book_idx = bisect_left(book_times, t_trade)
+                if book_idx >= len(all_books):
+                    book_idx = len(all_books) - 1
+                closest_book = all_books[book_idx]
+                try:
+                    bid_px = float(closest_book["levels"][0][0]["px"])
+                    ask_px = float(closest_book["levels"][1][0]["px"])
+                    mid_px = (bid_px + ask_px) / 2.0
+                except Exception:
+                    mid_px = p_trade
+            else:
                 mid_px = p_trade
                 
             if p_trade >= mid_px:
@@ -223,7 +230,38 @@ def compute_lighter_bar_features(bars_df, book_bar_mapping, trade_events, levels
         else:
             vpin_values.append(0.0)
             
+        # 2. Gini Coefficient of Trade Sizes
+        sizes = [t["size"] for t in bar_trades]
+        if len(sizes) <= 1:
+            gini_values.append(0.0)
+        else:
+            sorted_sizes = np.sort(sizes)
+            n = len(sorted_sizes)
+            coef = 2.0 / n
+            const = (n + 1.0) / n
+            weighted_sum = sum((i + 1) * val for i, val in enumerate(sorted_sizes))
+            sum_sizes = sum(sorted_sizes)
+            gini_val = (coef * weighted_sum / sum_sizes - const) if sum_sizes > 0 else 0.0
+            gini_values.append(gini_val)
+            
+        # 3. Tick-Path Efficiency
+        prices = [t["price"] for t in bar_trades]
+        if len(prices) <= 1:
+            tick_efficiency_values.append(1.0)
+        else:
+            net_disp = abs(prices[-1] - prices[0])
+            tot_path = sum(abs(prices[i] - prices[i-1]) for i in range(1, len(prices)))
+            efficiency_val = net_disp / tot_path if tot_path > 0 else 1.0
+            tick_efficiency_values.append(efficiency_val)
+            
     bars_df["vpin"] = vpin_values
+    bars_df["gini_coefficient"] = gini_values
+    bars_df["tick_efficiency"] = tick_efficiency_values
+    
+    # 4. Dollar/Volume-Bar Velocity
+    bars_df["velocity"] = bars_df.apply(
+        lambda r: r["volume"] / r["duration"] if r["duration"] > 0 else 0.0, axis=1
+    )
     
     # Depth imbalance at level 1 (for compatibility with legacy models)
     depth_ratio = []

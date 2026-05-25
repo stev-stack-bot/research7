@@ -65,8 +65,24 @@ def main():
                     current_asks.pop(price, None)
                 else:
                     current_asks[price] = size
-            sorted_bids = sorted([{"px": p, "sz": s} for p, s in current_bids.items()], key=lambda x: x["px"], reverse=True)
-            sorted_asks = sorted([{"px": p, "sz": s} for p, s in current_asks.items()], key=lambda x: x["px"])
+                    
+            # Prune old levels to keep dictionaries small (avoids RAM OOM and O(N log N) sorting slow downs)
+            if current_bids and current_asks:
+                best_bid = max(current_bids.keys())
+                best_ask = min(current_asks.keys())
+                mid_px = (best_bid + best_ask) / 2.0
+                
+                for px in list(current_bids.keys()):
+                    if px < mid_px * 0.95:
+                        current_bids.pop(px)
+                for px in list(current_asks.keys()):
+                    if px > mid_px * 1.05:
+                        current_asks.pop(px)
+            
+            # Slice to top 2 levels to conserve RAM (we only ever need asks[0] and bids[0])
+            sorted_bids = sorted([{"px": p, "sz": s} for p, s in current_bids.items()], key=lambda x: x["px"], reverse=True)[:2]
+            sorted_asks = sorted([{"px": p, "sz": s} for p, s in current_asks.items()], key=lambda x: x["px"])[:2]
+            
             ts_us = int(ob_data.get("last_updated_at") or msg.get("last_updated_at"))
             book_states.append({
                 "time": ts_us,

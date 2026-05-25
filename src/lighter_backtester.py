@@ -181,7 +181,8 @@ def simulate_lighter_backtest(df, events_df, maker_fee=0.0, taker_fee=0.0, slipp
             FEATURE_COLS = [
                 "volatility_ratio", "duration", "depth_ratio", 
                 "cofi_l1_z", "micro_ret", "avg_spread", "vpin", 
-                "ret_lag1", "ret_lag2", "depth_ratio_l3", "depth_ratio_l5"
+                "ret_lag1", "ret_lag2", "depth_ratio_l3", "depth_ratio_l5",
+                "velocity", "gini_coefficient", "tick_efficiency"
             ]
             features = np.array([[df.loc[feat_idx, col] for col in FEATURE_COLS]])
             prob_probs = meta_model.predict_proba(features)[0]

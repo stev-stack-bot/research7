@@ -48,11 +48,5 @@
 
 ## Next Exact Prompt To Paste
 ```markdown
-The memory-optimized, uncorrupted live simulators for BTC and ETH are running in the background with a flat 114 MB RAM footprint. How would you like to proceed?
+The optimized backtests and statistical validation scripts have successfully run on the local raw data in `data/` without memory issues. Would you like to deploy/start the live simulator background processes for BTC and ETH now?
 ```
-
-
-
-
-
-
