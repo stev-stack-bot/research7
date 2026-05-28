@@ -2023,4 +2023,17 @@ Do not delete or rewrite prior entries unless repairing obvious formatting corru
 - Simulated live environments for ETH, BTC, and SOL are running under PIDs 142396, 142397, and 142398 respectively.
 - Logs show successful model loading: `Loaded Random Forest Meta-Labeler model from models/prem_model_{symbol}.joblib` and active volume bar assembly (`[+] Volume Bar 0 Formed`).
 
+## 2026-05-28 14:20 UTC - Live Simulators Stopped
+
+### User Request
+- Stop all background simulators.
+
+### Actions Taken
+- Terminated all background running live simulator processes via pkill.
+- Verified that all processes stopped.
+
+### Commands Or Checks Run
+- `pkill -f "src/lighter_live_simulator.py"`
+- `ps aux | grep "src/lighter_live_simulator.py"` (confirmed zero processes remaining)
+
 

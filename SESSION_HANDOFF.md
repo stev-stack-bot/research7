@@ -14,11 +14,7 @@
 - Verdict: Deployed to background live simulators (Premium Tiers for ETH, BTC, & SOL)
 - Reasons:
   1. **V8 Live Simulator Deployed**: `src/lighter_live_simulator.py` upgraded to passive maker limit entries, queue depth clearance tracking, dynamic Z-score velocity cancels, and real-time Random Forest meta-labeler inference.
-  2. **Background Processes Active**:
-     - ETH Premium Live Simulator: Deployed under PID 142396
-     - BTC Premium Live Simulator: Deployed under PID 142397
-     - SOL Premium Live Simulator: Deployed under PID 142398
-  3. **Real-time Logging**: Logging to `data/live_simulator_{symbol}.log` is unbuffered, showing real-time L2 order book sync, trade monitoring, bar formation, and feature warming.
+  2. **Simulator Status**: Stopped (PIDs terminated at user request).
 
 ## Lighter Data Export Tool
 - **Script**: `src/export_lighter_data.py`
@@ -48,6 +44,5 @@
 - `AI_JOURNAL.md`
 
 ## Next Steps
-- Monitor log files for real-time trade signals, approvals, vetoes, fills, and exits.
-- Compare live simulation metrics (win-rate, profit factor) to the V8 backtest baseline.
+- Wait for a larger dataset (e.g. weekly/monthly data export) to run extended V8 maker backtests.
 
