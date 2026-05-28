@@ -268,21 +268,25 @@ def compute_bar_features_streaming(bars_df, book_files, trades, z_window=100):
         if not current_bids or not current_asks:
             continue
             
-        # Prune old levels to keep dictionaries small
-        best_bid = max(current_bids.keys())
-        best_ask = min(current_asks.keys())
-        mid_px = (best_bid + best_ask) / 2.0
+        # Prune old levels to keep dictionaries small (do it every 500 updates instead of every update)
+        if update_count % 500 == 0:
+            best_bid = max(current_bids.keys())
+            best_ask = min(current_asks.keys())
+            mid_px = (best_bid + best_ask) / 2.0
+            
+            for px in list(current_bids.keys()):
+                if px < mid_px * 0.95:
+                    current_bids.pop(px)
+            for px in list(current_asks.keys()):
+                if px > mid_px * 1.05:
+                    current_asks.pop(px)
         
-        for px in list(current_bids.keys()):
-            if px < mid_px * 0.95:
-                current_bids.pop(px)
-        for px in list(current_asks.keys()):
-            if px > mid_px * 1.05:
-                current_asks.pop(px)
+        # Sort and slice (highly optimized: sort only the keys, then construct the top 5 dicts)
+        sorted_bid_keys = sorted(current_bids.keys(), reverse=True)[:5]
+        sorted_bids = [{"px": p, "sz": current_bids[p]} for p in sorted_bid_keys]
         
-        # Sort and slice
-        sorted_bids = sorted([{"px": p, "sz": s} for p, s in current_bids.items()], key=lambda x: x["px"], reverse=True)[:5]
-        sorted_asks = sorted([{"px": p, "sz": s} for p, s in current_asks.items()], key=lambda x: x["px"])[:5]
+        sorted_ask_keys = sorted(current_asks.keys())[:5]
+        sorted_asks = [{"px": p, "sz": current_asks[p]} for p in sorted_ask_keys]
         
         ts_us = int(ob_data.get("last_updated_at") or msg.get("last_updated_at"))
         

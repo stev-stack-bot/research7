@@ -1,24 +1,24 @@
 # Session Handoff
 
 ## Current Phase
-- Phase 14: Order Book Crossed State & Memory Leak Fix (Active).
+- Phase 18: V8 Queue Front-Running & Rolling Z-Score Pull Signal (Deployed).
 
 ## Current Research Question
-- Working Title: Lighter Order Book Imbalance (OBI) Scalper.
+- Working Title: Lighter Passive Maker Scalper (V8).
 - Hypothesis:
-  1. The Order Book Imbalance (OBI) calculated from the top-level bids and asks on Lighter's 50ms WebSocket feed is positively correlated with the price return of the subsequent volume/tick bar (t-stat > 2.0).
-  2. Under a Standard Account (0% fees, 300ms taker latency), the predictive edge of OBI decays slowly enough to yield a net profit after execution slippage.
-  3. Under a Premium Account (~0.02% taker fee, 140–200ms taker latency), the OBI edge is strong enough to clear both latency-induced slippage and transaction fee friction.
+  1. Stepping one tick inside the spread (`spread > tick_size * 1.001`) grants instant queue priority and bypasses the touch penalty.
+  2. Canceling resting limit entries when the running bar velocity Z-score exceeds `2.5` shields the strategy from adverse selection and toxic volume sweeps.
+  3. Real-time inference using trained Random Forest meta-labeler veto models reduces variance and locks in positive net returns under premium fees.
 
 ## Validation Verdict
-- Verdict: approved (Standard Tier for ETH, BTC, & SOL)
+- Verdict: Deployed to background live simulators (Premium Tiers for ETH, BTC, & SOL)
 - Reasons:
-  1. **Crossed Book & Bias Corrected**: Discovered and fixed a critical bug where WebSocket reconnect snapshots did not clear local bids/asks, resulting in stale crossed order books (e.g. BTC spread averaging -92 USD). This had introduced look-ahead arbitrage bias in the backtest (inflating returns to +5.8% and +3.4%).
-  2. **True Performance Metrics**: Corrected sweeps yield true, non-corrupted positive returns:
-     - **BTC**: $z=0.5, pt=5.0, sl=2.0, hold=10$ -> $+0.6177\%$ return, $50.0\%$ win rate, and $1.53$ profit factor.
-     - **ETH**: $z=0.5, pt=1.0, sl=1.0, hold=10$ -> $+0.0484\%$ return, $48.0\%$ win rate, and $1.15$ profit factor.
-     - **SOL**: $z=0.5, pt=2.0, sl=2.0, hold=5$ -> $+0.3610\%$ return, $62.5\%$ win rate, and $1.68$ profit factor.
-  3. **Memory Optimization**: Resolved a 14.2 GB memory leak by implementing order book mid-price pruning, top-5 level slicing, and capping historical bar/mapping storage to the active 30 bars. Memory footprint is now flat at **114 MB** (a 99.2% RAM saving).
+  1. **V8 Live Simulator Deployed**: `src/lighter_live_simulator.py` upgraded to passive maker limit entries, queue depth clearance tracking, dynamic Z-score velocity cancels, and real-time Random Forest meta-labeler inference.
+  2. **Background Processes Active**:
+     - ETH Premium Live Simulator: Deployed under PID 142396
+     - BTC Premium Live Simulator: Deployed under PID 142397
+     - SOL Premium Live Simulator: Deployed under PID 142398
+  3. **Real-time Logging**: Logging to `data/live_simulator_{symbol}.log` is unbuffered, showing real-time L2 order book sync, trade monitoring, bar formation, and feature warming.
 
 ## Lighter Data Export Tool
 - **Script**: `src/export_lighter_data.py`
@@ -31,9 +31,9 @@
 - **Script**: `src/lighter_live_simulator.py`
 - **Features**:
   - Connects to Lighter's live WebSocket feed and reconstructs the L2 book in real-time.
-  - Dynamically builds volume bars and processes the 11 advanced indicators on-the-fly.
-  - Simulates 300ms taker execution latency and 200ms maker limit profit target execution.
-  - **Memory Safe & Synced**: Clears state on snapshots, prunes order books and bars, flat memory footprint.
+  - Dynamically builds volume bars and processes the 14 V8 indicators on-the-fly.
+  - Loaded Random Forest veto classifiers (`models/prem_model_{symbol}.joblib`) to filter signals.
+  - Tracks limit queue depth fills and executes rolling Z-score velocity cancellations.
 
 ## Active Assumptions
 - Volume bar returns are closer to normal distributions than time bars.
@@ -41,12 +41,13 @@
 - Sequence matching via microseconds transaction times prevents any leakage of state.
 
 ## Files And Artifacts To Read Next
-- `src/lighter_live_simulator.py`
 - `data/live_simulator_btc.log`
 - `data/live_simulator_eth.log`
+- `data/live_simulator_sol.log`
+- `deploy_simulators.sh`
 - `AI_JOURNAL.md`
 
-## Next Exact Prompt To Paste
-```markdown
-The optimized backtests and statistical validation scripts have successfully run on the local raw data in `data/` without memory issues. Would you like to deploy/start the live simulator background processes for BTC and ETH now?
-```
+## Next Steps
+- Monitor log files for real-time trade signals, approvals, vetoes, fills, and exits.
+- Compare live simulation metrics (win-rate, profit factor) to the V8 backtest baseline.
+
