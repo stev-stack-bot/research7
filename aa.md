@@ -28,23 +28,29 @@ sequenceDiagram
     HUD->>API: HTTP POST /api/chat (SSE Stream)
     API->>Agent: Run Agent Loop
     
-    note over Agent, Router: Step 1: LLM Reasoning
-    Agent->>Router: Format Prompt + History -> LLM
-    Router->>Router: Active Provider Selection (Gemini/Ollama)
-    Router-->>Agent: JSON Response: {"thought": "...", "action": "...", ...}
-
-    note over Agent, Tool: Step 2: Tool Execution
-    Agent->>Agent: Parse Action Name & Arguments
-    Agent->>Tool: Execute Tool (document_search, web_search, math)
-    alt is Document Search
-        Tool->>Store: Query Query Embeddings
-        Store-->>Tool: Return Cosine Similarity Chunks
+    rect rgb(20, 30, 45)
+        note over Agent, Router: Step 1: LLM Reasoning
+        Agent->>Router: Format Prompt + History -> LLM
+        Router->>Router: Active Provider Selection (Gemini/Ollama)
+        Router-->>Agent: JSON Response: {"thought": "...", "action": "...", ...}
     end
-    Tool-->>Agent: Observation result (Markdown text)
 
-    note over Agent, HUD: Step 3: Stream Updates
-    Agent->>API: Yield AgentStep (thought, action, observation)
-    API-->>HUD: SSE Stream Update
+    rect rgb(30, 20, 20)
+        note over Agent, Tool: Step 2: Tool Execution
+        Agent->>Agent: Parse Action Name & Arguments
+        Agent->>Tool: Execute Tool (document_search, web_search, math)
+        alt is Document Search
+            Tool->>Store: Query Query Embeddings
+            Store-->>Tool: Return Cosine Similarity Chunks
+        end
+        Tool-->>Agent: Observation result (Markdown text)
+    end
+
+    rect rgb(20, 40, 30)
+        note over Agent, HUD: Step 3: Stream Updates
+        Agent->>API: Yield AgentStep (thought, action, observation)
+        API-->>HUD: SSE Stream Update
+    end
 
     Agent->>Agent: Repeat loop until Action == 'None' (Answer synthesized)
     Agent-->>API: Yield Final Answer + inline source citations
